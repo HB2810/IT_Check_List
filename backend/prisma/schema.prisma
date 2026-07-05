@@ -1,0 +1,298 @@
+// Prisma Schema for Stavya Intelligence - Enterprise Hospital IT Operations Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // Fallback local database provider for immediate zero-config execution; easily switchable to postgresql
+  url      = env("DATABASE_URL")
+}
+
+enum RoleType {
+  IT_HEAD
+  IT_EXECUTIVE
+  DEPARTMENT_LEAD
+  AUDITOR
+}
+
+enum AssetHealth {
+  HEALTHY
+  WARNING
+  CRITICAL
+  OFFLINE
+  MAINTENANCE
+}
+
+enum SeverityLevel {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum IncidentStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TaskPriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  CANCELLED
+}
+
+enum RecurrenceType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  TRIGGERED
+}
+
+enum NotificationSeverity {
+  INFO
+  SUCCESS
+  WARNING
+  CRITICAL
+}
+
+model User {
+  id              String        @id @default(uuid())
+  email           String        @unique
+  username        String        @unique
+  passwordHash    String
+  fullName        String
+  avatarUrl       String?
+  role            RoleType      @default(IT_EXECUTIVE)
+  departmentId    String?
+  department      Department?   @relation(fields: [departmentId], references: [id])
+  phone           String?
+  isOnline        Boolean       @default(false)
+  lastLoginAt     DateTime?
+  skillTags       String?       // JSON string array of skill tags e.g. ["Network", "Printers", "Servers"]
+  workloadScore   Int           @default(0) // Active task load calculation for auto-assignment
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  assignedAssets  Asset[]       @relation("AssignedUser")
+  createdIncidents Incident[]   @relation("IncidentReporter")
+  assignedIncidents Incident[]  @relation("IncidentAssignee")
+  assignedTasks   Task[]        @relation("TaskAssignee")
+  createdTasks    Task[]        @relation("TaskCreator")
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+  refreshTokens   RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model Department {
+  id          String   @id @default(uuid())
+  name        String   @unique // OPD, IPD, OT, Radiology, ICU, CSSD, Server Room, etc.
+  code        String   @unique // OPD-01, IPD-02, OT-01
+  floor       String
+  wing        String?
+  headName    String?
+  contactExt  String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  users       User[]
+  assets      Asset[]
+  incidents   Incident[]
+
+  @@map("departments")
+}
+
+model AssetCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique // Server, Switch, Router, Firewall, Printer, Biometric, CCTV, UPS, etc.
+  icon        String?  // Lucide icon identifier
+  description String?
+  assets      Asset[]
+
+  @@map("asset_categories")
+}
+
+model Asset {
+  id              String        @id @default(uuid())
+  assetTag        String        @unique // e.g. STV-SRV-001
+  name            String
+  categoryId      String
+  category        AssetCategory @relation(fields: [categoryId], references: [id])
+  departmentId    String
+  department      Department    @relation(fields: [departmentId], references: [id])
+  location        String        // Specific location e.g., "Server Rack 02 - Slot B"
+  ipAddress       String?
+  macAddress      String?
+  qrCode          String?       // QR payload / URL
+  serialNumber    String?
+  vendor          String?
+  purchaseDate    DateTime?
+  warrantyExpiry  DateTime?
+  amcExpiry       DateTime?
+  purchaseCost    Float?
+  healthStatus    AssetHealth   @default(HEALTHY)
+  riskScore       Int           @default(0) // 0 to 100 calculated by telemetry & history
+  specs           String?       // JSON string of specs e.g., CPU, RAM, OS, Storage
+  photos          String?       // JSON string array of image URLs
+  assignedUserId  String?
+  assignedUser    User?         @relation("AssignedUser", fields: [assignedUserId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  incidents       Incident[]
+  tasks           Task[]
+  serviceLogs     AssetServiceLog[]
+
+  @@map("assets")
+}
+
+model AssetServiceLog {
+  id          String   @id @default(uuid())
+  assetId     String
+  asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  performedBy String
+  description String
+  cost        Float?
+  servicedAt  DateTime @default(now())
+
+  @@map("asset_service_logs")
+}
+
+model Incident {
+  id                String         @id @default(uuid())
+  ticketNumber      String         @unique // e.g. INC-2026-0089
+  title             String
+  description       String
+  severity          SeverityLevel  @default(MEDIUM)
+  status            IncidentStatus @default(OPEN)
+  departmentId      String
+  department        Department     @relation(fields: [departmentId], references: [id])
+  assetId           String?
+  asset             Asset?         @relation(fields: [assetId], references: [id])
+  reporterId        String
+  reporter          User           @relation("IncidentReporter", fields: [reporterId], references: [id])
+  assigneeId        String?
+  assignee          User?          @relation("IncidentAssignee", fields: [assigneeId], references: [id])
+  rootCause         String?
+  resolutionSummary String?
+  downtimeMinutes   Int            @default(0)
+  repairCost        Float          @default(0.0)
+  resolvedAt        DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  // Relations
+  timeline          IncidentTimeline[]
+
+  @@map("incidents")
+}
+
+model IncidentTimeline {
+  id         String   @id @default(uuid())
+  incidentId String
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  actorName  String
+  action     String   // e.g. "Status changed to IN_PROGRESS", "Assigned to Engineer Rahul"
+  notes      String?
+  timestamp  DateTime @default(now())
+
+  @@map("incident_timelines")
+}
+
+model Task {
+  id                 String         @id @default(uuid())
+  taskNumber         String         @unique // e.g. TSK-2026-0412
+  title              String
+  description        String
+  priority           TaskPriority   @default(MEDIUM)
+  status             TaskStatus     @default(PENDING)
+  recurrence         RecurrenceType @default(TRIGGERED)
+  dueDate            DateTime?
+  assetId            String?
+  asset              Asset?         @relation(fields: [assetId], references: [id])
+  assigneeId         String?
+  assignee           User?          @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creatorId          String
+  creator            User           @relation("TaskCreator", fields: [creatorId], references: [id])
+  autoAssignedReason String?
+  estimatedMinutes   Int            @default(30)
+  completionNotes    String?
+  completionPhotoUrl String?
+  completedAt        DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@map("tasks")
+}
+
+model KnowledgeBaseArticle {
+  id              String   @id @default(uuid())
+  title           String
+  category        String   // Network, Server, Printer, Software, Hardware
+  content         String   // Markdown / Rich text solution
+  tags            String   // JSON string array of search tags
+  resolutionCount Int      @default(0)
+  authorName      String
+  attachmentsUrl  String?  // JSON array of PDF / Image attachments
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("knowledge_base")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userEmail String?
+  action    String   // e.g. USER_LOGIN, ASSET_DELETE, TASK_COMPLETE, CONFIG_UPDATE
+  target    String?  // e.g. Asset:STV-SRV-001
+  ipAddress String?
+  userAgent String?
+  metadata  String?  // JSON metadata payload
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        String               @id @default(uuid())
+  userId    String
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  severity  NotificationSeverity @default(INFO)
+  isRead    Boolean              @default(false)
+  linkUrl   String?
+  createdAt DateTime             @default(now())
+
+  @@map("notifications")
+}
