@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTasks } from '../contexts/TaskContext';
 import { 
   Activity, 
   Server, 
@@ -16,8 +17,13 @@ import { Link } from 'react-router-dom';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const [tasksDone, setTasksDone] = useState<number>(8);
-  const [opdFixed, setOpdFixed] = useState<boolean>(false);
+  const { tasks, incidents } = useTasks();
+
+  const completedCount = tasks.filter((i) => i.status !== 'UNCHECKED').length;
+  const faultCount = tasks.filter((i) => i.status === 'FAULT').length;
+  const okCount = tasks.filter((i) => i.status === 'OK').length;
+  const totalTasks = tasks.length;
+  const activeTicketsCount = incidents.filter((i) => i.status === 'OPEN').length;
 
   return (
     <div className="space-y-6">
@@ -34,7 +40,7 @@ export const DashboardPage: React.FC = () => {
             Welcome back, {user?.fullName.split(' ')[0]} 👋
           </h1>
           <p className="text-xs text-cyan-100 max-w-xl">
-            HIS server temperature is <span className="font-bold text-emerald-300">18°C (Optimal)</span>. {opdFixed ? 'All OPD printers are running smoothly!' : '1 printer jam reported in OPD Counter 03.'}
+            HIS server temperature is <span className="font-bold text-emerald-300">18°C (Optimal)</span>. {faultCount === 0 ? 'All hospital systems operational without reported faults!' : `${faultCount} infrastructure fault(s) reported.`}
           </p>
         </div>
         <Link
@@ -49,9 +55,9 @@ export const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Hospital SLA</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-1">99.98%</p>
-            <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">All Systems Operational</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Verified OK</p>
+            <p className="text-2xl font-extrabold text-emerald-600 mt-1">{okCount} / {totalTasks}</p>
+            <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">Operational Systems</p>
           </div>
           <div className="p-3 rounded-2xl bg-cyan-50 text-cyan-700">
             <Activity className="w-6 h-6" />
@@ -61,10 +67,10 @@ export const DashboardPage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Tickets</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-1">{opdFixed ? '0' : '1'}</p>
-            <p className="text-[11px] text-amber-700 font-semibold mt-0.5">{opdFixed ? 'No tickets pending' : 'OPD Printer Roller Jam'}</p>
+            <p className="text-2xl font-extrabold text-slate-900 mt-1">{activeTicketsCount}</p>
+            <p className="text-[11px] text-amber-700 font-semibold mt-0.5">{activeTicketsCount > 0 ? `${activeTicketsCount} open support ticket(s)` : 'Zero active tickets'}</p>
           </div>
-          <div className={`p-3 rounded-2xl ${opdFixed ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+          <div className={`p-3 rounded-2xl ${activeTicketsCount === 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
             <AlertTriangle className="w-6 h-6" />
           </div>
         </div>
@@ -72,8 +78,8 @@ export const DashboardPage: React.FC = () => {
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tasks Completed</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-1">{tasksDone} / 12</p>
-            <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">Daily Inspection Queue</p>
+            <p className="text-2xl font-extrabold text-slate-900 mt-1">{completedCount} / {totalTasks}</p>
+            <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">{Math.round((completedCount / (totalTasks || 1)) * 100)}% Daily Progress</p>
           </div>
           <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-700">
             <CheckCircle2 className="w-6 h-6" />
@@ -82,9 +88,9 @@ export const DashboardPage: React.FC = () => {
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Storage Health</p>
-            <p className="text-2xl font-extrabold text-slate-900 mt-1">12% Risk</p>
-            <p className="text-[11px] text-slate-500 font-semibold mt-0.5">84 Days Capacity Remaining</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Faults Reported</p>
+            <p className="text-2xl font-extrabold text-red-600 mt-1">{faultCount}</p>
+            <p className="text-[11px] text-slate-500 font-semibold mt-0.5">{faultCount > 0 ? 'Requires Attention' : 'Zero Faults'}</p>
           </div>
           <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-700">
             <HardDrive className="w-6 h-6" />
@@ -102,49 +108,43 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* Quick Fix Button 1 */}
-          <button
-            onClick={() => setOpdFixed(!opdFixed)}
-            className={`p-4 rounded-2xl text-left border transition-all flex flex-col justify-between space-y-2 ${
-              opdFixed
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                : 'bg-amber-50 hover:bg-amber-100/80 border-amber-200 text-amber-900'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider">OPD Billing Printer</span>
-              {opdFixed ? <Check className="w-4 h-4 text-emerald-600" /> : <Wrench className="w-4 h-4 text-amber-600" />}
-            </div>
-            <p className="text-xs font-semibold">
-              {opdFixed ? 'Status: Resolved & Online' : 'Action: Mark Roller Jam Resolved'}
-            </p>
-            <p className="text-[10px] text-slate-500">{opdFixed ? '1-click toggle to reopen' : 'Assigned to Het Patel • OPD Counter 03'}</p>
-          </button>
-
-          {/* Quick Fix Button 2 */}
-          <button
-            onClick={() => setTasksDone((prev) => Math.min(prev + 1, 12))}
-            className="p-4 rounded-2xl text-left border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-all flex flex-col justify-between space-y-2"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Morning Inspection</span>
-              <CheckCircle2 className="w-4 h-4 text-cyan-600" />
-            </div>
-            <p className="text-xs font-bold text-slate-900">Mark Next Daily Task Done</p>
-            <p className="text-[10px] text-slate-500">Completed: {tasksDone} of 12 checklists</p>
-          </button>
-
-          {/* Quick Fix Button 3 */}
+          {/* Quick Action Button 1 */}
           <Link
-            to="/copilot"
+            to="/tasks"
             className="p-4 rounded-2xl text-left border border-cyan-200 bg-cyan-50/60 hover:bg-cyan-100/70 transition-all flex flex-col justify-between space-y-2"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-cyan-900 uppercase tracking-wider">AI Diagnostics</span>
-              <Bot className="w-4 h-4 text-cyan-700" />
+              <span className="text-xs font-bold text-cyan-900 uppercase tracking-wider">IT Infrastructure Checklist</span>
+              <CheckCircle2 className="w-4 h-4 text-cyan-600" />
             </div>
-            <p className="text-xs font-bold text-cyan-900">Run Automated Network Diagnostics</p>
-            <p className="text-[10px] text-cyan-700">Scans 48 hospital switches & APs</p>
+            <p className="text-xs font-bold text-cyan-900">Inspect & Verify Daily Checklist</p>
+            <p className="text-[10px] text-cyan-700">{completedCount} of {totalTasks} items verified</p>
+          </Link>
+
+          {/* Quick Action Button 2 */}
+          <Link
+            to="/incidents"
+            className="p-4 rounded-2xl text-left border border-amber-200 bg-amber-50/60 hover:bg-amber-100/70 transition-all flex flex-col justify-between space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">SLA Incident Desk</span>
+              <Wrench className="w-4 h-4 text-amber-600" />
+            </div>
+            <p className="text-xs font-bold text-amber-900">View Active SLA Support Tickets</p>
+            <p className="text-[10px] text-amber-700">{activeTicketsCount} open support ticket(s)</p>
+          </Link>
+
+          {/* Quick Action Button 3 */}
+          <Link
+            to="/copilot"
+            className="p-4 rounded-2xl text-left border border-teal-200 bg-teal-50/60 hover:bg-teal-100/70 transition-all flex flex-col justify-between space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-teal-900 uppercase tracking-wider">AI Diagnostics</span>
+              <Bot className="w-4 h-4 text-teal-700" />
+            </div>
+            <p className="text-xs font-bold text-teal-900">Run Automated Network Diagnostics</p>
+            <p className="text-[10px] text-teal-700">Scans 48 hospital switches & APs</p>
           </Link>
         </div>
       </div>
@@ -162,37 +162,44 @@ export const DashboardPage: React.FC = () => {
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { name: 'Server Room', count: '6 Assets', status: 'HEALTHY' },
-            { name: 'Operation Theatre', count: '8 Assets', status: 'HEALTHY' },
-            { name: 'OPD (Outpatient)', count: '12 Assets', status: opdFixed ? 'HEALTHY' : '1 ALERT' },
-            { name: 'Radiology DICOM', count: '5 Assets', status: 'HEALTHY' },
-            { name: 'ICU Monitoring', count: '9 Assets', status: 'HEALTHY' },
-            { name: 'Billing & Accounts', count: '4 Assets', status: 'HEALTHY' },
-            { name: 'Reception Desk', count: '3 Assets', status: 'HEALTHY' },
-            { name: 'CSSD Utility', count: '2 Assets', status: 'HEALTHY' },
-          ].map((dept, idx) => (
-            <div
-              key={idx}
-              className={`p-3.5 rounded-xl border flex flex-col justify-between space-y-1.5 ${
-                dept.status === 'HEALTHY'
-                  ? 'bg-slate-50 border-slate-200 text-slate-800'
-                  : 'bg-amber-50 border-amber-200 text-amber-900'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold">{dept.name}</span>
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    dept.status === 'HEALTHY' ? 'bg-emerald-500' : 'bg-amber-500'
-                  }`}
-                />
+            { name: 'Server Room', key: 'Server Room (SRV-01)' },
+            { name: 'Operation Theatre', key: 'Operation Theatre (OT-01)' },
+            { name: 'OPD (Outpatient)', key: 'OPD (Outpatient)' },
+            { name: 'Radiology DICOM', key: 'Radiology & Imaging' },
+            { name: 'ICU Monitoring', key: 'ICU Monitoring' },
+            { name: 'IPD (Inpatient)', key: 'IPD (Inpatient)' },
+            { name: 'Billing & Accounts', key: 'Billing & Accounts' },
+            { name: 'CSSD Utility', key: 'CSSD Sterilization' },
+          ].map((dept, idx) => {
+            const deptTasks = tasks.filter((t) => t.department.includes(dept.name) || t.department === dept.key);
+            const hasFault = deptTasks.some((t) => t.status === 'FAULT');
+            const status = hasFault ? 'FAULT DETECTED' : 'HEALTHY';
+            const countStr = `${deptTasks.length || 2} Assets`;
+
+            return (
+              <div
+                key={idx}
+                className={`p-3.5 rounded-xl border flex flex-col justify-between space-y-1.5 ${
+                  !hasFault
+                    ? 'bg-slate-50 border-slate-200 text-slate-800'
+                    : 'bg-red-50 border-red-200 text-red-900'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold">{dept.name}</span>
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      !hasFault ? 'bg-emerald-500' : 'bg-red-500 animate-ping'
+                    }`}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500">
+                  <span>{countStr}</span>
+                  <span className={`font-bold ${hasFault ? 'text-red-700' : 'text-emerald-700'}`}>{status}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500">
-                <span>{dept.count}</span>
-                <span className="font-bold">{dept.status}</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

@@ -10,6 +10,8 @@ import { errorHandler } from './middleware/errorHandler';
 
 import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
+import taskRoutes from './routes/taskRoutes';
+import incidentRoutes from './routes/incidentRoutes';
 
 const app = express();
 const server = http.createServer(app);
@@ -18,7 +20,7 @@ const server = http.createServer(app);
 const io = new SocketIOServer(server, {
   cors: {
     origin: '*',
-    methods: ['GET', 'POST']
+    methods: ['GET', 'POST', 'PUT', 'DELETE']
   }
 });
 
@@ -35,6 +37,8 @@ app.use(morgan('dev'));
 // API V1 Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/tasks', taskRoutes);
+app.use('/api/v1/incidents', incidentRoutes);
 
 // Health Check Endpoint
 app.get('/api/v1/health', (req, res) => {

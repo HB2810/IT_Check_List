@@ -1,21 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTasks } from '../contexts/TaskContext';
 import { AlertTriangle, Plus, Clock, User, Building, ShieldCheck, CheckCircle2 } from 'lucide-react';
-
-interface IncidentTicket {
-  id: string;
-  ticketNumber: string;
-  title: string;
-  severity: string;
-  status: string;
-  department: string;
-  assignee: string;
-  reportedAt: string;
-}
 
 export const IncidentsPage: React.FC = () => {
   const { user } = useAuth();
-  const [incidents, setIncidents] = useState<IncidentTicket[]>([]);
+  const { incidents, createIncident } = useTasks();
 
   // Report Incident State
   const [showReportModal, setShowReportModal] = useState(false);
@@ -26,18 +16,12 @@ export const IncidentsPage: React.FC = () => {
   const handleReportIncident = (e: React.FormEvent) => {
     e.preventDefault();
     if (!titleInput.trim()) return;
-    const newInc: IncidentTicket = {
-      id: Date.now().toString(),
-      ticketNumber: `INC-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+    createIncident({
       title: titleInput,
       severity: severityInput,
-      status: 'OPEN',
       department: deptInput,
-      assignee: 'Mohit (IT Executive)',
-      reportedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setIncidents((prev) => [newInc, ...prev]);
+      assignee: user?.fullName || 'Mohit (IT Executive)'
+    });
     setShowReportModal(false);
     setTitleInput('');
   };
