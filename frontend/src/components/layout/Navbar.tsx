@@ -9,7 +9,8 @@ import {
   AlertTriangle, 
   CheckSquare, 
   LogOut,
-  Users
+  Users,
+  FileText
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -23,6 +24,7 @@ export const Navbar: React.FC = () => {
     { name: 'Devices & Assets', path: '/assets', icon: Server },
     { name: 'Support & Incidents', path: '/incidents', icon: AlertTriangle },
     { name: 'Inspection Checklist', path: '/tasks', icon: CheckSquare },
+    { name: 'Daily Reports & Audit', path: '/reports', icon: FileText, badge: isHead ? 'HEAD' : 'LOG' },
     ...(isHead ? [{ name: 'User Creation & Employee KPIs', path: '/users', icon: Users, badge: 'HEAD' }] : [])
   ];
 

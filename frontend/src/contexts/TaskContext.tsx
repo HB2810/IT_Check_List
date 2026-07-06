@@ -15,9 +15,24 @@ export interface IncidentTicket {
   taskId?: string;
 }
 
+export interface InspectionReport {
+  id: string;
+  date: string;
+  submittedBy: string;
+  submittedAt: string;
+  totalItems: number;
+  okCount: number;
+  faultCount: number;
+  status: 'SUBMITTED' | 'ACKNOWLEDGED_BY_HEAD';
+  acknowledgedBy?: string;
+  acknowledgedAt?: string;
+  items: InfrastructureItem[];
+}
+
 interface TaskContextType {
   tasks: InfrastructureItem[];
   incidents: IncidentTicket[];
+  reports: InspectionReport[];
   loading: boolean;
   adminNotificationSent: boolean;
   markTaskOk: (id: string) => Promise<void>;
@@ -26,6 +41,8 @@ interface TaskContextType {
   editTask: (item: InfrastructureItem) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   createIncident: (ticket: { title: string; severity: string; department: string; assignee?: string }) => Promise<void>;
+  submitInspectionReport: (submittedBy?: string, date?: string) => Promise<InspectionReport>;
+  acknowledgeReport: (reportId: string, acknowledgedBy?: string) => Promise<void>;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -60,6 +77,11 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return cached ? JSON.parse(cached) : [];
   });
 
+  const [reports, setReports] = useState<InspectionReport[]>(() => {
+    const cached = localStorage.getItem('stavya_reports_cache');
+    return cached ? JSON.parse(cached) : [];
+  });
+
   const [loading, setLoading] = useState(false);
   const [adminNotificationSent, setAdminNotificationSent] = useState(false);
 
@@ -72,13 +94,18 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('stavya_incidents_cache', JSON.stringify(incidents));
   }, [incidents]);
 
-  // Fetch initial tasks & incidents from backend
+  useEffect(() => {
+    localStorage.setItem('stavya_reports_cache', JSON.stringify(reports));
+  }, [reports]);
+
+  // Fetch initial tasks, incidents & reports from backend
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [tasksRes, incRes] = await Promise.allSettled([
+      const [tasksRes, incRes, repRes] = await Promise.allSettled([
         api.get('/tasks'),
-        api.get('/incidents')
+        api.get('/incidents'),
+        api.get('/reports')
       ]);
 
       if (tasksRes.status === 'fulfilled' && tasksRes.value.data?.data) {
@@ -86,6 +113,9 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       if (incRes.status === 'fulfilled' && incRes.value.data?.data) {
         setIncidents(incRes.value.data.data);
+      }
+      if (repRes.status === 'fulfilled' && repRes.value.data?.data) {
+        setReports(repRes.value.data.data);
       }
     } catch (err) {
       console.log('Backend sync offline, using local cached data', err);
@@ -138,11 +168,31 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
+    const handleReportSubmitted = (data: { report: InspectionReport; allReports?: InspectionReport[] }) => {
+      if (data.allReports) {
+        setReports(data.allReports);
+      } else if (data.report) {
+        setReports((prev) => [data.report, ...prev.filter((r) => r.id !== data.report.id)]);
+      }
+      setAdminNotificationSent(true);
+      setTimeout(() => setAdminNotificationSent(false), 6000);
+    };
+
+    const handleReportAcknowledged = (data: { report: InspectionReport; allReports?: InspectionReport[] }) => {
+      if (data.allReports) {
+        setReports(data.allReports);
+      } else if (data.report) {
+        setReports((prev) => prev.map((r) => (r.id === data.report.id ? data.report : r)));
+      }
+    };
+
     socket.on('task_updated', handleTaskUpdated);
     socket.on('task_created', handleTaskCreated);
     socket.on('task_deleted', handleTaskDeleted);
     socket.on('incident_created', handleIncidentCreated);
     socket.on('incident_updated', handleIncidentUpdated);
+    socket.on('report_submitted', handleReportSubmitted);
+    socket.on('report_acknowledged', handleReportAcknowledged);
 
     return () => {
       socket.off('task_updated', handleTaskUpdated);
@@ -150,11 +200,12 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       socket.off('task_deleted', handleTaskDeleted);
       socket.off('incident_created', handleIncidentCreated);
       socket.off('incident_updated', handleIncidentUpdated);
+      socket.off('report_submitted', handleReportSubmitted);
+      socket.off('report_acknowledged', handleReportAcknowledged);
     };
   }, []);
 
   const markTaskOk = async (id: string) => {
-    // Optimistic UI update
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status: 'OK', faultNote: undefined } : t)));
     try {
       await api.put(`/tasks/${id}/status`, { status: 'OK' });
@@ -167,7 +218,6 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const task = tasks.find((t) => t.id === id);
     const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Optimistic UI update for task
     setTasks((prev) =>
       prev.map((t) =>
         t.id === id
@@ -182,7 +232,6 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       )
     );
 
-    // Optimistic UI update for incident ticket
     const newInc: IncidentTicket = {
       id: `fault-${Date.now()}`,
       ticketNumber: `INC-2026-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -269,11 +318,70 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const submitInspectionReport = async (submittedBy?: string, date?: string): Promise<InspectionReport> => {
+    const todayDate = date || new Date().toISOString().split('T')[0];
+    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const okCount = tasks.filter((t) => t.status === 'OK').length;
+    const faultCount = tasks.filter((t) => t.status === 'FAULT').length;
+
+    const newReport: InspectionReport = {
+      id: `rep-${Date.now()}`,
+      date: todayDate,
+      submittedBy: submittedBy || 'Mohit (IT Executive)',
+      submittedAt: nowTime,
+      totalItems: tasks.length,
+      okCount,
+      faultCount,
+      status: 'SUBMITTED',
+      items: JSON.parse(JSON.stringify(tasks))
+    };
+
+    setReports((prev) => [newReport, ...prev.filter((r) => r.date !== todayDate)]);
+    setAdminNotificationSent(true);
+    setTimeout(() => setAdminNotificationSent(false), 5000);
+
+    try {
+      const res = await api.post('/reports/submit', { submittedBy: newReport.submittedBy, date: todayDate });
+      if (res.data?.data) {
+        return res.data.data;
+      }
+    } catch (err) {
+      console.log('Offline report submit fallback saved locally');
+    }
+
+    return newReport;
+  };
+
+  const acknowledgeReport = async (reportId: string, acknowledgedBy?: string) => {
+    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    setReports((prev) =>
+      prev.map((r) =>
+        r.id === reportId
+          ? {
+              ...r,
+              status: 'ACKNOWLEDGED_BY_HEAD',
+              acknowledgedBy: acknowledgedBy || 'Vatsal Patel (IT Head)',
+              acknowledgedAt: nowTime
+            }
+          : r
+      )
+    );
+
+    try {
+      await api.put(`/reports/${reportId}/acknowledge`, { acknowledgedBy });
+    } catch (err) {
+      console.log('Offline report acknowledge fallback saved locally');
+    }
+  };
+
   return (
     <TaskContext.Provider
       value={{
         tasks,
         incidents,
+        reports,
         loading,
         adminNotificationSent,
         markTaskOk,
@@ -281,7 +389,9 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addTask,
         editTask,
         deleteTask,
-        createIncident
+        createIncident,
+        submitInspectionReport,
+        acknowledgeReport
       }}
     >
       {children}

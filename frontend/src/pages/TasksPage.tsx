@@ -58,6 +58,7 @@ export const TasksPage: React.FC = () => {
     addTask, 
     editTask, 
     deleteTask, 
+    submitInspectionReport,
     adminNotificationSent 
   } = useTasks();
 
@@ -493,7 +494,10 @@ export const TasksPage: React.FC = () => {
           </div>
           <button
             disabled={completedCount < items.length}
-            onClick={() => setReportGenerated(true)}
+            onClick={() => {
+              submitInspectionReport(user?.fullName);
+              setReportGenerated(true);
+            }}
             className="px-5 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs shadow-md shadow-cyan-600/20 transition-all flex items-center gap-2"
           >
             <FileText className="w-4 h-4" /> Submit Inspection & Deliver Report to IT Head
@@ -506,7 +510,7 @@ export const TasksPage: React.FC = () => {
               <span className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Daily Executive Inspection Report Sent to IT Head
               </span>
-              <span className="text-[10px] font-mono font-bold text-emerald-800">Status: Delivered to vatsal_IT_Head</span>
+              <span className="text-[10px] font-mono font-bold text-emerald-800">Status: Delivered & Synced Live</span>
             </div>
             <p className="text-xs text-emerald-800">
               Summary for <span className="font-bold">{selectedDate}</span>: Checked <span className="font-bold">{items.length}</span> hospital IT systems. <span className="font-bold text-emerald-900">{completedCount - faultCount} Verified OK</span> • <span className="font-bold text-red-700">{faultCount} Faults Reported</span>.

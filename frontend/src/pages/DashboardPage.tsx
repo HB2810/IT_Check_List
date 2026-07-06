@@ -11,13 +11,20 @@ import {
   ArrowRight, 
   HardDrive, 
   Check, 
-  Wrench 
+  Wrench,
+  FileText,
+  ShieldCheck,
+  ChevronRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const { tasks, incidents } = useTasks();
+  const isHead = user?.role === 'IT_HEAD';
+  const { tasks, incidents, reports } = useTasks();
+
+  const todayDate = new Date().toISOString().split('T')[0];
+  const todayReport = reports.find((r) => r.date === todayDate);
 
   const completedCount = tasks.filter((i) => i.status !== 'UNCHECKED').length;
   const faultCount = tasks.filter((i) => i.status === 'FAULT').length;
@@ -48,6 +55,44 @@ export const DashboardPage: React.FC = () => {
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-cyan-50 text-cyan-900 text-xs font-bold shadow-xs transition-all shrink-0"
         >
           <Bot className="w-4 h-4 text-cyan-700" /> Ask AI Copilot
+        </Link>
+      </div>
+
+      {/* IT Head Executive Inspection Report Status Banner */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start sm:items-center gap-3">
+          <div className={`p-3 rounded-2xl ${todayReport ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+            {todayReport ? <ShieldCheck className="w-6 h-6 text-emerald-600" /> : <FileText className="w-6 h-6 text-amber-600" />}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-extrabold text-slate-900">
+                Daily IT Checklist Inspection Status ({todayDate})
+              </h2>
+              {todayReport ? (
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  {todayReport.status === 'ACKNOWLEDGED_BY_HEAD' ? 'Report Signed Off' : 'Report Submitted'}
+                </span>
+              ) : (
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 border border-amber-200">
+                  {completedCount === totalTasks ? 'Ready to Submit' : `In-Progress (${Math.round((completedCount / (totalTasks || 1)) * 100)}%)`}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {todayReport
+                ? `Submitted by ${todayReport.submittedBy} at ${todayReport.submittedAt} • ${todayReport.okCount} Verified OK, ${todayReport.faultCount} Faults`
+                : `${completedCount} of ${totalTasks} IT assets inspected so far.`}
+            </p>
+          </div>
+        </div>
+
+        <Link
+          to="/reports"
+          className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 shrink-0"
+        >
+          <span>View Audit & Submitted Reports</span>
+          <ChevronRight className="w-4 h-4" />
         </Link>
       </div>
 
