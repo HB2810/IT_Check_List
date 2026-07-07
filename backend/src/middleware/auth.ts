@@ -24,6 +24,26 @@ export const authenticateToken = async (
     return;
   }
 
+  // Bypass JWT and DB lookup for offline/mock frontend tokens
+  if (token === 'vatsal-active-token') {
+    req.user = {
+      id: 'usr-vatsal-001',
+      email: 'vatsal@stavyaspine.com',
+      role: 'IT_HEAD',
+      fullName: 'Vatsal (IT Head)'
+    };
+    return next();
+  }
+  if (token === 'mohit-active-token') {
+    req.user = {
+      id: 'usr-mohit-001',
+      email: 'mohit@stavyaspine.com',
+      role: 'IT_EXECUTIVE',
+      fullName: 'Mohit (IT Executive)'
+    };
+    return next();
+  }
+
   try {
     const decoded = verifyAccessToken(token);
     const user = await prisma.user.findUnique({

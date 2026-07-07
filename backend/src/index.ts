@@ -13,6 +13,7 @@ import userRoutes from './routes/userRoutes';
 import taskRoutes from './routes/taskRoutes';
 import incidentRoutes from './routes/incidentRoutes';
 import reportRoutes from './routes/reportRoutes';
+import inventoryRoutes from './routes/inventoryRoutes';
 
 const app = express();
 const server = http.createServer(app);
@@ -41,6 +42,7 @@ app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/tasks', taskRoutes);
 app.use('/api/v1/incidents', incidentRoutes);
 app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/inventory', inventoryRoutes);
 
 // Health Check Endpoint
 app.get('/api/v1/health', (req, res) => {

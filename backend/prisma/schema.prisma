@@ -96,6 +96,8 @@ model User {
   auditLogs       AuditLog[]
   notifications   Notification[]
   refreshTokens   RefreshToken[]
+  requestedInventory InventoryRequest[] @relation("InventoryRequester")
+  approvedInventory  InventoryRequest[] @relation("InventoryApprover")
 
   @@map("users")
 }
@@ -295,4 +297,38 @@ model Notification {
   createdAt DateTime             @default(now())
 
   @@map("notifications")
+}
+
+model InventoryItem {
+  id             String             @id @default(uuid())
+  name           String             @unique
+  category       String             // "Peripherals", "Networking", "Consumables", "Spare Parts"
+  totalStock     Int
+  availableStock Int
+  reorderLevel   Int                @default(5)
+  unit           String             @default("Units") // "Units", "Boxes", "Meters", etc.
+  location       String?            // "Cabinet A-1", "Rack Room Shelf"
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  requests       InventoryRequest[]
+
+  @@map("inventory_items")
+}
+
+model InventoryRequest {
+  id           String           @id @default(uuid())
+  itemId       String
+  item         InventoryItem    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  quantity     Int
+  status       String           @default("PENDING") // PENDING, APPROVED, REJECTED
+  purpose      String
+  requestedById String
+  requestedBy  User             @relation("InventoryRequester", fields: [requestedById], references: [id])
+  approvedById String?
+  approvedBy   User?            @relation("InventoryApprover", fields: [approvedById], references: [id])
+  notes        String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@map("inventory_requests")
 }
