@@ -14,7 +14,8 @@ import {
   Settings, 
   Activity,
   Users,
-  Zap
+  Zap,
+  Archive
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -29,6 +30,7 @@ export const Sidebar: React.FC = () => {
     { name: 'Infrastructure & Assets', path: '/assets', icon: Server, role: 'ALL' },
     { name: 'Incidents & SLA', path: '/incidents', icon: AlertTriangle, role: 'ALL' },
     { name: 'Tasks & Checklists', path: '/tasks', icon: CheckSquare, role: 'ALL' },
+    { name: 'Smart Inventory System', path: '/inventory', icon: Archive, role: 'ALL' },
     { name: 'AI Intelligence Copilot', path: '/copilot', icon: Bot, role: 'ALL', badge: 'AI' },
     { name: 'Knowledge Base', path: '/kb', icon: BookOpen, role: 'ALL' },
     { name: 'Analytics & KPIs', path: '/analytics', icon: BarChart3, role: 'IT_HEAD' },

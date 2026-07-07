@@ -105,6 +105,42 @@ let inventoryStore: InventoryItem[] = [
     location: 'Power Storage Shelf',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'inv-7',
+    name: 'Dell PowerEdge R750 Spare RAM DDR4 32GB',
+    category: 'Hardware Spares',
+    totalStock: 8,
+    availableStock: 2, // Trigger Low Stock Alert! (reorderLevel = 3)
+    reorderLevel: 3,
+    unit: 'Modules',
+    location: 'Cabinet C-1',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'inv-8',
+    name: 'Windows Server 2022 Client Access License (CAL)',
+    category: 'Software & Licenses',
+    totalStock: 25,
+    availableStock: 22,
+    reorderLevel: 5,
+    unit: 'Licenses',
+    location: 'Digital Active Directory Locker',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'inv-9',
+    name: 'Microsoft Office 365 E3 Enterprise Subscription',
+    category: 'Software & Licenses',
+    totalStock: 100,
+    availableStock: 12, // Trigger Low Stock Alert! (reorderLevel = 20)
+    reorderLevel: 20,
+    unit: 'Subscriptions',
+    location: 'Microsoft 365 Admin Portal',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   }
 ];
 

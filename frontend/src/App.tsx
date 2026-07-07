@@ -14,6 +14,7 @@ import { IncidentsPage } from './pages/IncidentsPage';
 import { TasksPage } from './pages/TasksPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { UsersPage } from './pages/UsersPage';
+import { InventoryPage } from './pages/InventoryPage';
 
 export const App: React.FC = () => {
   return (
@@ -32,6 +33,7 @@ export const App: React.FC = () => {
                     <Route path="/assets" element={<AssetsPage />} />
                     <Route path="/incidents" element={<IncidentsPage />} />
                     <Route path="/tasks" element={<TasksPage />} />
+                    <Route path="/inventory" element={<InventoryPage />} />
                     <Route path="/reports" element={<ReportsPage />} />
 
                     {/* Role Guarded IT Head Routes */}
